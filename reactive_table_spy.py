@@ -5,6 +5,7 @@ import sys
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
+ # http://127.0.0.1:8050/ 即可。
 # 检查并安装需要的包
 try:
     import dash
@@ -83,19 +84,33 @@ def scrape_sp500_pe():
 # 获取股权风险溢价数据
 def get_sp500_risk_p():
     ticker = "^TNX"
-    treasury_data = yf.download(ticker, start="2000-01-01", interval='1mo')
+    treasury_data = yf.download(ticker, start="2000-01-01", interval='1d')
+    treasury_data = treasury_data.droplevel(1, axis=1)
     treasury_data = treasury_data[['Close']].rename(columns={'Close': '10-Year Treasury Yield'})
+    treasury_data.index = pd.to_datetime(treasury_data.index)
+   
+    treasury_data = treasury_data.resample('MS').first()
     treasury_data['10-Year Treasury Yield'] = treasury_data['10-Year Treasury Yield'] / 100
+    treasury_data = treasury_data.reset_index(level=0)
+    treasury_data = treasury_data.set_index("Date")
 
     pe_data = scrape_sp500_pe()
+    pe_data['Date'] = pd.to_datetime(pe_data['Date'])
     pe_data = pe_data.set_index(['Date'])
     pe_data = pe_data.loc['2000-01-01':]
 
     pe_data['Earnings Yield'] = 1 / pe_data['PE_Ratio']
+    
+    
+    # **合并数据**
     combined_data = pd.merge(pe_data, treasury_data, left_index=True, right_index=True, how='inner')
+    
+    # 计算 Equity Risk Premium
     combined_data['Equity Risk Premium'] = combined_data['Earnings Yield'] - combined_data['10-Year Treasury Yield']
-
+    
     return combined_data
+    
+
 
 
 combined_data = get_sp500_risk_p()
