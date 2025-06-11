@@ -187,11 +187,11 @@ if __name__ == "__main__":
     
     # 使用部分股票代码进行DCF计算测试（可根据需要调整测试股票）
     #test_tickers = sp500_tickers[:3]  # 仅测试前3个股票
-    tickers = ["AAPL", "MSFT", "GOOGL","T"]
+    #tickers = ["AAPL", "MSFT", "GOOGL","T"]
     discount_rate = 0.07
     terminal_growth_rate = 0.02
     forecast_years = 5
 
     calculator = DCFCalculator(discount_rate, terminal_growth_rate, forecast_years)
-    dcf_df = calculator.batch_calculate_dcf(tickers)
+    dcf_df = calculator.batch_calculate_dcf(test_tickers)
     print(dcf_df)
