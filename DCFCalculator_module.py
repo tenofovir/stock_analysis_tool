@@ -105,6 +105,8 @@ class DCFCalculator:
         dcf_value = sum(pv_fcfs) + pv_terminal
         return dcf_value
 
+
+
     def batch_calculate_dcf(self, ticker_list):
         """
         对股票列表中的每个股票批量计算DCF估值，并获取市值及计算DCF与市值比值，
@@ -117,39 +119,32 @@ class DCFCalculator:
             一个 DataFrame，包含每个股票的代码、DCF估值、当前市值及DCF/市值比值
         """
         records = []
-        
         for ticker in ticker_list:
-            # 计算DCF
             dcf = self.calculate_dcf(ticker)
-            
-            # 获取当前市值
             try:
                 stock = yf.Ticker(ticker)
                 info = stock.info
-                market_cap = info.get("marketCap", None)
-            except Exception as e:
-                print(f"{ticker} 获取市值数据错误: {e}")
+                market_cap = info.get("marketCap")
+                current_price = info.get("regularMarketPrice")
+                float_shares = info.get("floatShares")
+            except Exception:
                 market_cap = None
-            
-            # 计算DCF与市值比值
-            ratio = None
-            if dcf is not None and market_cap is not None and market_cap != 0:
-                ratio = dcf / market_cap
-            
-            record = {
+                current_price = None
+            my_market_cap = current_price * float_shares
+            ratio = dcf / my_market_cap if dcf and my_market_cap else None
+            theoretical_price = dcf / float_shares if dcf and float_shares else None
+
+            records.append({
                 "Ticker": ticker,
                 "DCF_Value": dcf,
                 "Market_Cap": market_cap,
-                "DCF_MarketCap_Ratio": ratio
-            }
-            records.append(record)
-            print(f"{ticker}: DCF = {dcf}, 市值 = {market_cap}, 比值 = {ratio}")
-            
-            # 随机延时，降低访问频率
+                "Current_Price": current_price,
+                "DCF_MarketCap_Ratio": ratio,
+                "Theoretical_Price": theoretical_price
+            })
             time.sleep(random.uniform(1, 3))
-        
-        df = pd.DataFrame(records)
-        return df
+
+        return pd.DataFrame(records)
 
     @staticmethod
     def get_sp500_tickers():
