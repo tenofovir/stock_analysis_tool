@@ -7,8 +7,6 @@ import time
 import random
 import warnings
 
-
-
 class DCFCalculator:
     def __init__(self, discount_rate, terminal_growth_rate, forecast_years):
         """
@@ -104,7 +102,45 @@ class DCFCalculator:
         
         dcf_value = sum(pv_fcfs) + pv_terminal
         return dcf_value
+    
 
+    def calc_abs_sensitivity(calculator, tickers, delta=0.01):
+        results = []
+        r0, g0 = calculator.discount_rate, calculator.terminal_growth_rate
+
+        for t in tickers:
+            base = calculator.batch_calculate_dcf([t])
+            if base.empty or pd.isna(base.loc[0, 'DCF_MarketCap_Ratio']):
+                continue
+            R0 = base.loc[0, 'DCF_MarketCap_Ratio']
+
+            # 折现率 ±1pp
+            dr = delta
+            calculator.discount_rate = r0 + dr
+            Rup = calculator.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
+            calculator.discount_rate = r0 - dr
+            Rdn = calculator.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
+            calculator.discount_rate = r0
+            delta_R = (Rup - Rdn) / 2
+
+            # 永续增长 ±1pp
+            dg = delta
+            calculator.terminal_growth_rate = g0 + dg
+            Gup = calculator.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
+            calculator.terminal_growth_rate = g0 - dg
+            Gdn = calculator.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
+            calculator.terminal_growth_rate = g0
+            delta_G = (Gup - Gdn) / 2
+
+            results.append({
+                'Ticker': t,
+                'Delta_R_per_1pp_r': delta_R,
+                'Delta_R_per_1pp_g': delta_G
+            })
+
+        # 恢复原参数
+        calculator.discount_rate, calculator.terminal_growth_rate = r0, g0
+        return pd.DataFrame(results)
 
 
     def batch_calculate_dcf(self, ticker_list):
@@ -152,6 +188,7 @@ class DCFCalculator:
             time.sleep(random.uniform(1, 3))
 
         return pd.DataFrame(records)
+    
 
     @staticmethod
     def get_sp500_tickers():
@@ -188,12 +225,20 @@ if __name__ == "__main__":
     print("部分股票代码:", sp500_tickers[:10])
     
     # 使用部分股票代码进行DCF计算测试（可根据需要调整测试股票）
-    #test_tickers = sp500_tickers[:3]  # 仅测试前3个股票
-    #tickers = ["AAPL", "MSFT", "GOOGL","T"]
-    discount_rate = 0.07
+    test_tickers = sp500_tickers[:10]  # 仅测试前3个股票
+    #test_tickers = ["NVDA", "MSFT", "MRK", "T"]
+    discount_rate = 0.08
     terminal_growth_rate = 0.02
     forecast_years = 5
 
     calculator = DCFCalculator(discount_rate, terminal_growth_rate, forecast_years)
     dcf_df = calculator.batch_calculate_dcf(test_tickers)
-    print(dcf_df)
+    tickers_for_sens = dcf_df['Ticker'].tolist()
+    sens_df  = calculator.calc_abs_sensitivity(calculator, tickers_for_sens)
+    df_merge = pd.merge(
+    dcf_df, 
+    sens_df[['Ticker', 'Delta_R_per_1pp_r', 'Delta_R_per_1pp_g']], 
+    on='Ticker', 
+    how='left'
+    )
+    print(df_merge)
