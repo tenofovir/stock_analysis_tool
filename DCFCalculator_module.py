@@ -104,32 +104,32 @@ class DCFCalculator:
         return dcf_value
     
 
-    def calc_abs_sensitivity(calculator, tickers, delta=0.01):
+    def calc_abs_sensitivity(self, ticker_list, delta=0.01):
         results = []
-        r0, g0 = calculator.discount_rate, calculator.terminal_growth_rate
+        r0, g0 = self.discount_rate, self.terminal_growth_rate
 
-        for t in tickers:
-            base = calculator.batch_calculate_dcf([t])
+        for t in ticker_list:
+            base = self.batch_calculate_dcf([t])
             if base.empty or pd.isna(base.loc[0, 'DCF_MarketCap_Ratio']):
                 continue
             R0 = base.loc[0, 'DCF_MarketCap_Ratio']
 
             # 折现率 ±1pp
             dr = delta
-            calculator.discount_rate = r0 + dr
-            Rup = calculator.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
-            calculator.discount_rate = r0 - dr
-            Rdn = calculator.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
-            calculator.discount_rate = r0
+            self.discount_rate = r0 + dr
+            Rup = self.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
+            self.discount_rate = r0 - dr
+            Rdn = self.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
+            self.discount_rate = r0
             delta_R = (Rup - Rdn) / 2
 
             # 永续增长 ±1pp
             dg = delta
-            calculator.terminal_growth_rate = g0 + dg
-            Gup = calculator.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
-            calculator.terminal_growth_rate = g0 - dg
-            Gdn = calculator.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
-            calculator.terminal_growth_rate = g0
+            self.terminal_growth_rate = g0 + dg
+            Gup = self.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
+            self.terminal_growth_rate = g0 - dg
+            Gdn = self.batch_calculate_dcf([t]).loc[0, 'DCF_MarketCap_Ratio']
+            self.terminal_growth_rate = g0
             delta_G = (Gup - Gdn) / 2
 
             results.append({
@@ -139,7 +139,7 @@ class DCFCalculator:
             })
 
         # 恢复原参数
-        calculator.discount_rate, calculator.terminal_growth_rate = r0, g0
+        self.discount_rate, self.terminal_growth_rate = r0, g0
         return pd.DataFrame(results)
 
 
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     calculator = DCFCalculator(discount_rate, terminal_growth_rate, forecast_years)
     dcf_df = calculator.batch_calculate_dcf(test_tickers)
     tickers_for_sens = dcf_df['Ticker'].tolist()
-    sens_df  = calculator.calc_abs_sensitivity(calculator, tickers_for_sens)
+    sens_df  = calculator.calc_abs_sensitivity(tickers_for_sens)
     df_merge = pd.merge(
     dcf_df, 
     sens_df[['Ticker', 'Delta_R_per_1pp_r', 'Delta_R_per_1pp_g']], 
