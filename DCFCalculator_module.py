@@ -130,14 +130,21 @@ class DCFCalculator:
             except Exception:
                 market_cap = None
                 current_price = None
-            my_market_cap = current_price * float_shares
-            ratio = dcf / my_market_cap if dcf and my_market_cap else None
-            theoretical_price = dcf / float_shares if dcf and float_shares else None
+            if dcf is not None and current_price not in (None, 0) and float_shares not in (None, 0):
+                # 重新计算市值并互斥地做空值保护
+                my_market_cap = current_price * float_shares
+                ratio = dcf / my_market_cap
+                theoretical_price = dcf / float_shares
+            else:
+                # 任意一个数据缺失，就直接给出 None
+                my_market_cap = None
+                ratio = None
+                theoretical_price = None
 
             records.append({
                 "Ticker": ticker,
                 "DCF_Value": dcf,
-                "Market_Cap": market_cap,
+                "Market_Cap": my_market_cap,
                 "Current_Price": current_price,
                 "DCF_MarketCap_Ratio": ratio,
                 "Theoretical_Price": theoretical_price
